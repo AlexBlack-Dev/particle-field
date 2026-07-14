@@ -1,4 +1,4 @@
-﻿# Particle Field
+# Particle Field
 
 ![preview](images/preview.svg)
 
