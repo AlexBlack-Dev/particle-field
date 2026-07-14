@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Particle Field</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0f; overflow: hidden; font-family: system-ui, sans-serif; }
+canvas { display: block; }
+#info {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,0.25); font-size: 13px; letter-spacing: 0.5px;
+  pointer-events: none; text-align: center;
+}
+</style>
+</head>
+<body>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three'
+
+const COUNT = 6000
+const SPREAD = 30
+const COLORS = ['#5B9BFF', '#7C5CBF', '#A855F7', '#3B82F6', '#6366F1']
+
+const scene = new THREE.Scene()
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100)
+camera.position.z = 24
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+renderer.setSize(innerWidth, innerHeight)
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+document.body.prepend(renderer.domElement)
+
+const positions = new Float32Array(COUNT * 3)
+const colors = new Float32Array(COUNT * 3)
+const sizes = new Float32Array(COUNT)
+const speeds = new Float32Array(COUNT)
+
+const colorObjs = COLORS.map(c => new THREE.Color(c))
+
+for (let i = 0; i < COUNT; i++) {
+  const i3 = i * 3
+  positions[i3] = (Math.random() - 0.5) * SPREAD
+  positions[i3 + 1] = (Math.random() - 0.5) * SPREAD
+  positions[i3 + 2] = (Math.random() - 0.5) * SPREAD
+
+  const col = colorObjs[Math.floor(Math.random() * colorObjs.length)]
+  colors[i3] = col.r
+  colors[i3 + 1] = col.g
+  colors[i3 + 2] = col.b
+
+  sizes[i] = 0.04 + Math.random() * 0.08
+  speeds[i] = 0.2 + Math.random() * 0.4
+}
+
+const geometry = new THREE.BufferGeometry()
+geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
+
+const vertexShader = `
+attribute float size;
+varying vec3 vColor;
+void main() {
+  vColor = color;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = size * (300.0 / -mv.z);
+  gl_Position = projectionMatrix * mv;
+}
+`
+
+const fragmentShader = `
+varying vec3 vColor;
+void main() {
+  vec2 c = gl_PointCoord - 0.5;
+  float d = length(c);
+  if (d > 0.5) discard;
+  float alpha = 1.0 - smoothstep(0.0, 0.5, d);
+  alpha *= 0.85;
+  gl_FragColor = vec4(vColor, alpha);
+}
+`
+
+const material = new THREE.ShaderMaterial({
+  vertexShader,
+  fragmentShader,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  vertexColors: true,
+})
+
+const points = new THREE.Points(geometry, material)
+scene.add(points)
+
+const mouse = { x: 0, y: 0 }
+document.addEventListener('mousemove', e => {
+  mouse.x = (e.clientX / innerWidth) * 2 - 1
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1
+})
+
+let time = 0
+function loop() {
+  requestAnimationFrame(loop)
+  time += 0.003
+
+  const pos = geometry.attributes.position.array
+  for (let i = 0; i < COUNT; i++) {
+    const i3 = i * 3
+    pos[i3 + 1] += Math.sin(time * speeds[i] + pos[i3] * 0.5) * 0.004
+    pos[i3] += Math.cos(time * speeds[i] * 0.7 + pos[i3 + 1] * 0.5) * 0.004
+  }
+  geometry.attributes.position.needsUpdate = true
+
+  points.rotation.y += 0.0003
+  points.rotation.x = Math.sin(time * 0.1) * 0.05 + mouse.y * 0.1
+  points.rotation.z = Math.cos(time * 0.15) * 0.03 + mouse.x * 0.1
+
+  renderer.render(scene, camera)
+}
+loop()
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(innerWidth, innerHeight)
+})
+</script>
+<div id="info">move mouse · 6000 particles · webgl</div>
+</body>
+</html>
