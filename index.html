@@ -51,12 +51,10 @@ for (let i = 0; i < COUNT; i++) {
   positions[i3] = (Math.random() - 0.5) * SPREAD
   positions[i3 + 1] = (Math.random() - 0.5) * SPREAD
   positions[i3 + 2] = (Math.random() - 0.5) * SPREAD
-
   const col = colorObjs[Math.floor(Math.random() * colorObjs.length)]
   colors[i3] = col.r
   colors[i3 + 1] = col.g
   colors[i3 + 2] = col.b
-
   sizes[i] = 0.04 + Math.random() * 0.08
   speeds[i] = 0.2 + Math.random() * 0.4
 }
@@ -66,32 +64,28 @@ geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
 geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
 geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
 
-const vertexShader = `
-attribute float size;
-varying vec3 vColor;
-void main() {
-  vColor = color;
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = size * (300.0 / -mv.z);
-  gl_Position = projectionMatrix * mv;
-}
-`
-
-const fragmentShader = `
-varying vec3 vColor;
-void main() {
-  vec2 c = gl_PointCoord - 0.5;
-  float d = length(c);
-  if (d > 0.5) discard;
-  float alpha = 1.0 - smoothstep(0.0, 0.5, d);
-  alpha *= 0.85;
-  gl_FragColor = vec4(vColor, alpha);
-}
-`
-
 const material = new THREE.ShaderMaterial({
-  vertexShader,
-  fragmentShader,
+  vertexShader: `
+    attribute float size;
+    varying vec3 vColor;
+    void main() {
+      vColor = color;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (300.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vColor;
+    void main() {
+      vec2 c = gl_PointCoord - 0.5;
+      float d = length(c);
+      if (d > 0.5) discard;
+      float alpha = 1.0 - smoothstep(0.0, 0.5, d);
+      alpha *= 0.85;
+      gl_FragColor = vec4(vColor, alpha);
+    }
+  `,
   transparent: true,
   depthWrite: false,
   blending: THREE.AdditiveBlending,
@@ -111,7 +105,6 @@ let time = 0
 function loop() {
   requestAnimationFrame(loop)
   time += 0.003
-
   const pos = geometry.attributes.position.array
   for (let i = 0; i < COUNT; i++) {
     const i3 = i * 3
@@ -119,11 +112,9 @@ function loop() {
     pos[i3] += Math.cos(time * speeds[i] * 0.7 + pos[i3 + 1] * 0.5) * 0.004
   }
   geometry.attributes.position.needsUpdate = true
-
   points.rotation.y += 0.0003
   points.rotation.x = Math.sin(time * 0.1) * 0.05 + mouse.y * 0.1
   points.rotation.z = Math.cos(time * 0.15) * 0.03 + mouse.x * 0.1
-
   renderer.render(scene, camera)
 }
 loop()
